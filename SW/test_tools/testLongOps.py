@@ -4,8 +4,8 @@ import pyvisa
 import logging
 from enum import Enum
 
-NUM_WRITES_66332A_PROLOGIX = 6  # max number of writes for 66332A without it crapping out. The limits seems to be related to prologix vs VXI-11, lower limit with prologix
-NUM_WRITES_66332A_VXI11 = 14  # max number of writes for 66332A without it crapping out. The limits seems to be related to prologix vs VXI-11, higher limit with VXI-11
+NUM_WRITES_66332A_PROLOGIX = 200  # 127 characters max with prologix. but I split it up below
+NUM_WRITES_66332A_VXI11 = 200  # no real limit with VXI-11, but I want to keep it reasonable for testing
 
 TESTCONFIG = {
     "usb": {
@@ -30,14 +30,14 @@ TESTCONFIG = {
         "writes": NUM_WRITES_66332A_PROLOGIX
     },    
     "vxi": {
-        "inst": "TCPIP::192.168.7.206::gpib,1::INSTR",
+        "inst": "TCPIP::192.168.7.206::inst1::INSTR",
         "p": 0,
         "type": "66332A",
         "readings": 800,
         "writes": NUM_WRITES_66332A_VXI11
     },    
     "sa_vxi": {
-        "inst": "TCPIP::192.168.7.206::gpib,3::INSTR",
+        "inst": "TCPIP::192.168.7.206::inst3::INSTR",
         "p": 0,
         "type": "8590E",
         "readings": 1,
@@ -73,7 +73,7 @@ TESTCONFIG = {
     }    
 }
 
-DEFAULT_DEVICE = "sa_prologix"
+DEFAULT_DEVICE = "vxi"
 
 PROLOGIX_SLEEP = 0.5  # seconds
 
@@ -162,6 +162,8 @@ def init_device(device_address: str, device_bus_address: int, device_type: str, 
     else:
         inst = rm.open_resource(device_address)        
     inst.timeout = 10000  # milli-seconds
+    print("Connected.")
+            
     if use_prologix_commands:
         inst.read_termination = "\n"
         inst.write_termination = "\n"
@@ -240,6 +242,9 @@ def write_device(device_address: str, device_bus_address: int, device_type: str,
         
     print("WRITING DEVICE *********************")
     print("Number of writes to do: ", number_of_writes)
+    if number_of_writes <= 0:
+        print("Nothing to write. Exiting.")
+        return
     
     use_prologix_commands = init_device(device_address, device_bus_address, device_type, prologix)
     
@@ -248,14 +253,24 @@ def write_device(device_address: str, device_bus_address: int, device_type: str,
         return
         
     print("Doing writes...")
+    inst.timeout = 20000  # increase timeout for long writes, as the device can become unresponsive for a while
+    cmd = ""
     if device_type == "66332A":
         cmd = "OUTP ON;VOLT 0;"
         m = 20.0 / number_of_writes
         for i in range(number_of_writes):
-            cmd += f"VOLT {(i + 1) * m:.2f};*WAI;"  # adding WAI so I can see the progress on a scope or fast DMM
+            cmd += f"VOLT {(i + 1) * m:.2f};"
+            if prologix != prologix_type.NONE:
+                if len(cmd) > 110:  # I want to keep the command length reasonable for prologix, as it can cause issues
+                    inst.write(cmd)
+                    print(f"Wrote {len(cmd)} bytes.")
+                    cmd = ""
 
-    inst.write(cmd)
-    time.sleep(1)
+    if cmd != "":
+        inst.write(cmd)
+        print(f"Wrote {len(cmd)} bytes.")
+    
+    time.sleep(2)  # wait a bit for the device to settle after the writes, as it can become unresponsive for a while
     print("Read Errors if any...")
     check_err(inst, device_type, use_prologix_commands)
     print("Read Output...")

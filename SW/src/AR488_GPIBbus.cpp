@@ -760,7 +760,7 @@ enum receiveState GPIBbus::receiveData(Stream &dataStream, bool detectEoi, bool 
 
 
 /***** Send a series of characters as data to the GPIB bus *****/
-void GPIBbus::sendData(const char *data, uint8_t dsize, bool isLastPacket) {
+void GPIBbus::sendData(const char *data, uint16_t dsize, bool isLastPacket) {
   //  bool err = false;
   uint8_t tc;
   enum gpibHandshakeState state;
@@ -784,7 +784,7 @@ void GPIBbus::sendData(const char *data, uint8_t dsize, bool isLastPacket) {
   }
 
 #ifdef DEBUG_GPIBbus_SEND
-  DB_PRINT(F("write data mode is set."), "");
+  DB_PRINT(F("write data mode is set. Characters to send: "), dsize);
   DB_PRINT(F("Begin send loop ->"), "");
 #endif
 
@@ -812,10 +812,18 @@ void GPIBbus::sendData(const char *data, uint8_t dsize, bool isLastPacket) {
     DB_RAW_PRINT(data[i]);
 #endif
 
-    if (state != HANDSHAKE_COMPLETE) break;
+    if (state != HANDSHAKE_COMPLETE) {
+#ifdef DEBUG_GPIBbus_SEND
+      DB_RAW_PRINT("\n");
+      DB_PRINT(F("ERR: Writing aborted at character "), i);
+      DB_PRINT(F("End of send loop. State: "), state);
+#endif
+      break;
+    }
   }
 
 #ifdef DEBUG_GPIBbus_SEND
+  DB_RAW_PRINT("\n");
   DB_PRINT(F("<- End of send loop."), "");
 #endif
 

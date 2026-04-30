@@ -2,3 +2,4 @@
 SW/.pio
 SW/.vscode/*
 SW/test_tools/network_instrument/__pycache__/*
+SW/test_tools/.vscode/launch.json

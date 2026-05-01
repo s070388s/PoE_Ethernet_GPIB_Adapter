@@ -108,9 +108,17 @@ This does not mean that you cannot physically connect more instruments to the ga
 
 Also, be aware that the GPIB bus is a shared bus. Even if you have connected to multiple instruments, you might encounter problems if you run multiple commands or queries *at the same time*, via for example multiprocessing or threading.
 
-### Large replies or large requests
+### Large writes (commands and queries)
 
-Both VXI-11 and prologix support large replies and large commands and requests. Although the gateway supports it, be aware that instruments themselves often have rather low limits with regards to the the size of the commands and requests. Often it is best to send commands one at a time.
+VXI-11 supports very large writes.
+
+Prologix is however limited to 127 characters due to a limitation in the used prologix parser. If you need to send larger commands, you must split them in multiple writes that each have one or more complete commands.
+
+See the `testLongOps.py` script in the `test_tools` folder for an example of how to do this.
+
+### Large reads (replies)
+
+Both VXI-11 and prologix support large replies to queries.
 
 Know that if you use VXI-11 and pyvisa, you may need to set the `instr.chunk_size` to a higher value if you use very large replies, and you get a `VI_ERROR_INV_PROT` error.
 
@@ -201,6 +209,9 @@ This project is licensed under the GPL V3. See the [LICENSE](LICENSE) file for d
 
 ## Release notes
 
+- 2.3
+  - Fixes large write issue with VXI-11
+  - Better explanation of large write issues in readme.
 - 2.2:
   - Fixes and improvements to VXI-11.2 implementation, especially regarding large reads. Improved compatibility with older instruments.
   - Solved communication issues with certain instruments that have weak or absent pullups on the GPIB bus.

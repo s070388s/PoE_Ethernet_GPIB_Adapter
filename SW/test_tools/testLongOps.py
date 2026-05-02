@@ -8,72 +8,72 @@ NUM_WRITES_66332A_PROLOGIX = 200  # 127 characters max with prologix. but I spli
 NUM_WRITES_66332A_VXI11 = 200  # no real limit with VXI-11, but I want to keep it reasonable for testing
 
 TESTCONFIG = {
-    "usb": {
+    "usb_66332A": {
         "inst": "ASRL/dev/cu.usbmodem21101::INSTR",
         "p": 1,
         "type": "66332A",
         "readings": 800,
         "writes": NUM_WRITES_66332A_PROLOGIX
     },
-    "socket": {
+    "socket_66332A": {
         "inst": "TCPIP::192.168.7.206::1234::SOCKET",
         "p": 1,
         "type": "66332A",
         "readings": 800,
         "writes": NUM_WRITES_66332A_PROLOGIX
     },
-    "prologix": {
+    "prologix_66332A": {
         "inst": "PRLGX-TCPIP::192.168.7.206::INTFC",
         "p": 1,
         "type": "66332A",
         "readings": 800,
         "writes": NUM_WRITES_66332A_PROLOGIX
     },    
-    "vxi": {
+    "vxi_66332A": {
         "inst": "TCPIP::192.168.7.206::inst1::INSTR",
         "p": 0,
         "type": "66332A",
         "readings": 800,
         "writes": NUM_WRITES_66332A_VXI11
     },    
-    "sa_vxi": {
+    "vxi_8590E": {
         "inst": "TCPIP::192.168.7.206::inst3::INSTR",
         "p": 0,
         "type": "8590E",
         "readings": 1,
         "writes": 0
     },
-    "sa_prologix": {
+    "prologix_8590E": {
         "inst": "PRLGX-TCPIP::192.168.7.206::INTFC",
         "p": 3,
         "type": "8590E",
         "readings": 1,
         "writes": 0
     },
-    "sa_socket": {
+    "socket_8590E": {
         "inst": "TCPIP::192.168.7.206::1234::SOCKET",
         "p": 3,
         "type": "8590E",
         "readings": 1,
         "writes": 0
     },          
-    "direct": {
+    "direct_DMM6500": {
         "inst": "TCPIP::192.168.7.205::INSTR",
         "p": 0,
         "type": "DMM6500",
         "readings": 256,
         "writes": 0
     },
-    "default": {
-        "inst": "TCPIP::192.168.7.205::INSTR",
+    "direct_K2000": {
+        "inst": "TCPIP::192.168.7.208::INSTR",
         "p": 0,
-        "type": "DMM6500",
-        "readings": 0,
+        "type": "K2000",
+        "readings": 256,
         "writes": 0
-    }    
+    } 
 }
 
-DEFAULT_DEVICE = "vxi"
+DEFAULT_PRESET = "vxi_8590E"
 
 PROLOGIX_SLEEP = 0.5  # seconds
 
@@ -144,10 +144,7 @@ def get_prologix_type(device_address: str):
 def init_device(device_address: str, device_bus_address: int, device_type: str, prologix: prologix_type) -> bool:
     global rm, inst, prlgx
     use_prologix_commands = False
-    print("Device type: ", device_type)
-    print("Device address: ", device_address)
     if prologix != prologix_type.NONE:
-        print("Device bus address for prologix: ", device_bus_address)
         if prologix == prologix_type.SERIAL or prologix == prologix_type.SOCKET:
             use_prologix_commands = True
         
@@ -238,15 +235,18 @@ def write_device(device_address: str, device_bus_address: int, device_type: str,
             return
                 
     if number_of_writes < 1:
+        print("Nothing to write. Exiting.")
         return
         
     print("WRITING DEVICE *********************")
     print("Number of writes to do: ", number_of_writes)
-    if number_of_writes <= 0:
-        print("Nothing to write. Exiting.")
-        return
     
-    use_prologix_commands = init_device(device_address, device_bus_address, device_type, prologix)
+    try:
+        use_prologix_commands = init_device(device_address, device_bus_address, device_type, prologix)
+    except Exception as e:
+        print("Error initializing device: ", e)
+        close_device()
+        return
     
     if device_type == "8590E":
         print("Testing of 8590E series is not implemented yet.")
@@ -318,9 +318,14 @@ def read_device(device_address: str, device_bus_address: int, device_type: str, 
         number_of_readings = 1  # only one reading possible, it is already rather big
     
     print("READING DEVICE *********************")
-    print("Number of readings to do: ", number_of_readings)    
+    print("Number of readings to do: ", number_of_readings)
 
-    use_prologix_commands = init_device(device_address, device_bus_address, device_type, prologix)
+    try:
+        use_prologix_commands = init_device(device_address, device_bus_address, device_type, prologix)
+    except Exception as e:
+        print("Error initializing device: ", e)
+        close_device()
+        return
         
     print("Initialising measurements...")
     interval_in_ms = 100
@@ -458,35 +463,26 @@ def read_device(device_address: str, device_bus_address: int, device_type: str, 
     
 
 if __name__ == '__main__':
-    # Default values for testing
-    DEFAULT_INST = TESTCONFIG[DEFAULT_DEVICE]["inst"]
-    DEFAULT_P = TESTCONFIG[DEFAULT_DEVICE]["p"]
-    DEFAULT_TYPE = TESTCONFIG[DEFAULT_DEVICE]["type"]
-    DEFAULT_READINGS = TESTCONFIG[DEFAULT_DEVICE]["readings"]
-    DEFAULT_WRITES = TESTCONFIG[DEFAULT_DEVICE]["writes"]
     
     presets = TESTCONFIG.keys()
-    presets = [p for p in presets if p != "default"]  # remove default from the list
-    device_types = ["DMM6500", "K2000", "66332A", "8590E"]
+    device_types = []
+    for key in presets:
+        mytype = TESTCONFIG[key]["type"]
+        if mytype not in device_types:
+            device_types.append(mytype)
     
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description="Test long Reads or Writes via VXI-11, USB prologix or Ethernet prologix.",
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("instrument", type=str, nargs="?", default=DEFAULT_INST, help="The device to use for tests. Must be a Visa compatible connection string.")
-    parser.add_argument("-p", type=int, default=DEFAULT_P, help="The device address on the bus. Used with prologix. Use 0 for VXI-11.")
-    parser.add_argument("-t", choices=device_types, default=DEFAULT_TYPE, help="The instrument type.")
-    parser.add_argument("-r", type=int, default=DEFAULT_READINGS, help="Number of readings.")
-    parser.add_argument("-w", type=int, default=DEFAULT_WRITES, help="Number of writes.")
-    parser.add_argument("-d", choices=presets, default=None, help="Select one of the presets.")
+    parser = argparse.ArgumentParser(description="Test long Reads or Writes via VXI-11, USB prologix or Ethernet prologix.")
+    parser.add_argument("-d", choices=presets, default=DEFAULT_PRESET, help=f"Select one of the presets. Default: {DEFAULT_PRESET}.")
+    parser.add_argument("instrument", type=str, nargs="?", default=None, help="The device to use for tests. Must be a Visa compatible connection string. Overrides preset.")
+    parser.add_argument("-p", type=int, default=None, help="The device address on the bus. Used with prologix. Use 0 for VXI-11. Overrides preset.")
+    parser.add_argument("-t", choices=device_types, default=None, help="The instrument type, overrides preset.")
+    parser.add_argument("-r", type=int, default=None, help="Number of readings, overrides preset.")
+    parser.add_argument("-w", type=int, default=None, help="Number of writes, overrides preset.")
     parser.add_argument("-v", action="store_true", help="Enable verbose output.")
     parser.epilog = "VXI-11 address example: \"TCPIP::192.168.1.84::gpib,1::INSTR\". USB Prologix address example: \"ASRL9::INSTR\". Ethernet Prologix address example: \"TCPIP::192.168.1.84::1234::SOCKET\". This code is NOT compatible with a RAW socket device, as I re-use the RAW socket address style for prologix."
     args = parser.parse_args()
         
-    device_bus_address = args.p
-    device_address = args.instrument
-    device_type = args.t
-    number_of_readings = args.r
-    number_of_writes = args.w
     verbose = args.v
     
     if verbose:
@@ -498,12 +494,21 @@ if __name__ == '__main__':
         logging.getLogger('pyvisa').setLevel(logging.INFO)
         logging.getLogger('pyvisa-py').setLevel(logging.INFO)
     preset = args.d
-    if preset is not None:
-        device_address = TESTCONFIG[preset]["inst"]
-        device_bus_address = TESTCONFIG[preset]["p"]
-        device_type = TESTCONFIG[preset]["type"]
-        number_of_readings = TESTCONFIG[preset]["readings"]
-        number_of_writes = TESTCONFIG[preset]["writes"]
+    device_address = TESTCONFIG[preset]["inst"]
+    device_bus_address = TESTCONFIG[preset]["p"]
+    device_type = TESTCONFIG[preset]["type"]
+    number_of_readings = TESTCONFIG[preset]["readings"]
+    number_of_writes = TESTCONFIG[preset]["writes"]
+    if args.instrument is not None:
+        device_address = args.instrument
+    if args.p is not None:
+        device_bus_address = args.p
+    if args.t is not None:
+        device_type = args.t
+    if args.r is not None:
+        number_of_readings = args.r
+    if args.w is not None:
+        number_of_writes = args.w
     
     if number_of_writes == 0 and number_of_readings == 0:
         print("Nothing to do. Exiting. See -h for help.")
@@ -512,6 +517,11 @@ if __name__ == '__main__':
     if device_address is None or device_address == "":
         print("No device address provided. Exiting.")
         exit(1)
+        
+    print(f"Using device address: {device_address}")
+    if device_bus_address > 0:
+        print(f"Using device bus address: {device_bus_address}")
+    print(f"Using device type: {device_type}")
     read_device(device_address, device_bus_address, device_type, number_of_readings)
     write_device(device_address, device_bus_address, device_type, number_of_writes)
 

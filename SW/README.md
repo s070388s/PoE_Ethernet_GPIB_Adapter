@@ -67,6 +67,7 @@ no changes
 * `.cpp`: no changes
 * Added a couple of sections with `#ifdef AR488_GPIBconf_EXTEND`, in order to store the IP address in the config.
 * anticipated truncation problem resolution for #84 (`sendData()` with `uint16_t` len)
+* shuffled around some debug print statements in the `sendData()` function.
 
 ## AR488_Layouts.cpp and AR488_Layouts.h
 

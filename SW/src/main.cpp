@@ -186,8 +186,18 @@ class SCPI_handler : public SCPI_handler_interface {
         }
         // dummy reply if I am addressed
         if (address == 0) {
-            uint8_t deviceName[] = DEVICE_NAME;
-            dataStream.write(deviceName, sizeof(DEVICE_NAME) - 1); // remove the null terminator
+            uint8_t macAddress[6];
+            eeprom.getMACAddress(macAddress);
+            char macStr[18];
+            sprintf(macStr, "%02X:%02X:%02X:%02X:%02X:%02X", macAddress[0], macAddress[1], macAddress[2], macAddress[3], macAddress[4], macAddress[5]);
+
+            dataStream.write(DEVICE_MANUFACTURER, sizeof(DEVICE_MANUFACTURER) - 1);
+            dataStream.write(',');
+            dataStream.write(DEVICE_MODEL, sizeof(DEVICE_MODEL) - 1);
+            dataStream.write(',');
+            dataStream.write(macStr, sizeof(macStr) - 1);
+            dataStream.write(',');
+            dataStream.write(SOFTWARE_VERSION, sizeof(SOFTWARE_VERSION) - 1);
             return SRS_EOI;
         }
         

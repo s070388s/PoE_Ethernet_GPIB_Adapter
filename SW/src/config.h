@@ -6,7 +6,11 @@
 #define POE_ETHERNET_GPIB_ADAPTOR
 #endif
 
-#define DEVICE_NAME "Ethernet2GPIB Gateway v2.3 (AR488 v0.53.39)\n"
+#define DEVICE_MANUFACTURER "Kofotronic"
+#define DEVICE_MODEL "PoE Ethernet GPIB Gateway"
+#define SOFTWARE_VERSION "2.4-0.53.39"
+
+#define DEVICE_NAME DEVICE_MANUFACTURER " " DEVICE_MODEL " v" SOFTWARE_VERSION
 
 #define LED_R 13
 #define LED_G 39

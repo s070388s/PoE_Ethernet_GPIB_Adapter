@@ -359,7 +359,7 @@ void setPortPullupBits(PORT_t& port, uint8_t reg);
 #define DIO1_PIN  22  /* GPIB 1  : PORTD bit 0 */
 #define DIO2_PIN  23  /* GPIB 2  : PORTD bit 1 */
 #define DIO3_PIN  24  /* GPIB 3  : PORTD bit 2 */
-#define DIO4_PIN  24  /* GPIB 4  : PORTD bit 3 */
+#define DIO4_PIN  25  /* GPIB 4  : PORTD bit 3 */
 #define DIO5_PIN  26  /* GPIB 13 : PORTD bit 4 */
 #define DIO6_PIN  27  /* GPIB 14 : PORTD bit 5 */
 #define DIO7_PIN  28  /* GPIB 15 : PORTD bit 4 */
